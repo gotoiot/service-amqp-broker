@@ -1,17 +1,26 @@
 version: '3'
 
 services:
-  mosquitto:
-    image: eclipse-mosquitto:latest
+  rabbitmq:
+    image: rabbitmq:3.8.9-management
+    hostname: rabbitmq
+    restart: always
+    tty: true
+    stdin_open: true
+    # network_mode: host
     volumes:
-      - ./config:/mosquitto/config
-      - ./auth:/etc/mosquitto/
-     #- ./certs:/mosquitto/certs
-    expose:
-      - "1883"
-      - "8883"
-      - "9001"
+        # - ./config/rabbitmq.config:/etc/rabbitmq/rabbitmq.config
+        - ./plugins/enable_plugins:/etc/rabbitmq/enabled_plugins:ro
+        - ./_db:/var/lib/rabbitmq/mnesia
+        # More plugins on:
+        # https://www.rabbitmq.com/plugins.html
+        # https://www.rabbitmq.com/community-plugins.html
     ports:
-      - "1883:1883"
-      - "8883:8883"
-      - "9001:9001"
+        # HTTP DASHBOARD FOR MANAGEMENT
+        - "15672:15672"
+        # AMQP PROTOCOL
+        - "5672:5672"
+        # MQTT PROTOCOL
+        - "1883:1883"
+        # MQTT OVER WEBSOCKETS
+        - "15675:15675"
