@@ -23,4 +23,5 @@ services:
         # MQTT PROTOCOL
         - "1883:1883"
         # MQTT OVER WEBSOCKETS
-        - "15675:15675"
+        - "9001:9001"
+        - "9002:9002"

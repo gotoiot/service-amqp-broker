@@ -57,9 +57,9 @@ En esta sección vas a encontrar información que te va a servir para tener un m
 
 ### Configuración del servicio
 
-El archivo `docker-compose.yml` administra los parámetros generales de ejecución del broker. Está basado en la imagen oficial de `RabbitMQ` y soporta la conexión el protocolo AMQP en el binding de puertos 5672:5672, la comunicación por MQTT en 1883:1883, MQTT por WebSockets en 15675:15675 y la comunicación para el administrador del broker por http en el puerto 15672:15672.
+El archivo `docker-compose.yml` administra los parámetros generales de ejecución del broker. Está basado en la imagen oficial de `RabbitMQ` y soporta la conexión el protocolo AMQP en el binding de puertos 5672:5672, la comunicación por MQTT en 1883:1883, MQTT por WebSockets en 9001:9001 y la comunicación para el administrador del broker por http en el puerto 15672:15672. Así mismo, si el broker viene con unos ejemplos para WebSockets configurados en el binding de puertos 9002:9002.
 
-Así mismo, dentro del archivo docker-compose se definen los bind volumes que se comparten con el broker. Todos se encuentran mapeados dentro del directorio `rabbitmq` y se definen de la siguiente manera:
+Así mismo, dentro del archivo `docker-compose.yml` se definen los bind volumes que se comparten con el broker. Todos se encuentran mapeados dentro del directorio `rabbitmq` y se definen de la siguiente manera:
 
 * **enable_plugins:** En este archivo se pueden especificar los plugins habilitados por el broker. Si querés saber más al respecto podés ingresar a [este link](https://www.rabbitmq.com/plugins.html).
 * **rabbitmq-env.conf**: Este es el archivo donde se comparten las variables de entorno con las que inicia el broker. Si querés saber más al respecto podés ingresar a [este link](https://www.rabbitmq.com/configure.html#customise-environment).
@@ -76,40 +76,6 @@ En [este link](https://github.com/tyranron/lapin-issue-133-example/blob/master/r
 
 Este proyecto trae algunas definiciones preestablecidas, y podés modificarla a tus necesidades editando el archivo `definitions.json`.
 
-### Ejecutar comandos dentro del broker
-
-Si vas a realizar configuraciones en particular dentro del broker, en la información en internet vas a encontrar que muchas veces se ejecutan comandos dentro del broker, que sería lo mismo que ingresar al panel de administración y realizarlos por ese medio.
-
-Para correr cualquier comando, primero necesitas saber el nombre del container del servicio, para ello, podes ejecutar el comando `docker ps` y ver su nombre. Luego, una vez que sepas el nombre corre el comando `docker exec -it CONTAINER_NAME /bin/sh` para ingresar dentro del contenedor.
-
-En este ejemplo, podés ver los pasos necesarios para crear un usuario llamado `myuser` con contraseña `mypass`, con permisos de administrador del sistema.
-
-```sh
-rabbitmqctl add_user myuser mypass
-rabbitmqctl set_permissions -p / myuser ".*" ".*" ".*"
-rabbitmqctl set_user_tags myuser management administrator
-```
-
-
-### Conecxión por MQTT
-
-La conexión por MQTT se realiza mediante el [plugin oficial de RabbitMQ](https://www.rabbitmq.com/mqtt.html). Es recomendable que leas la información para entender cómo trabaja. 
-
-Este proyecto está pre configurado para reenviar los topics que llegan por MQTT hacia el exchange `amq.topic`; del mismo todo, todo lo que se publica en el exchange `amq.topic` que concide con la suscripción MQTT es enviado hacia los clientes respectivos. Para conectarse al broker es necesario utilizar el usuario y contraseña definidos en las variables `mqtt.default_user` y `mqtt.default_pass` en el archivo `rabbitmq.config`. 
-
-En este ejemplo te vamos a mostrar como realizar una suscripción y publicación por MQTT usando los `Mosquitto Clients` del broker [Mosquitto](https://www.mosquitto.org) mediante un contenedor de docker. Las credenciales de acceso son las por defecto del archivo de configuración.
-
-Abrí una terminal y ejecutá este comando para suscribirte a todos eventos (`event/#`).
-
-```
-docker run --rm --net host eclipse-mosquitto mosquitto_sub -h localhost -p 1883 -u gotoiot -P gotoiot -t event/#
-```
-
-Luego, desde otra terminal corré el siguiente comando para publicar un topic `event/failure` con el payload `'{"sensor_connected": false}'`.
-
-```
-docker run --rm --net host eclipse-mosquitto mosquitto_pub -h localhost -p 1883 -u gotoiot -P gotoiot -t event/failure -m '{"sensor_connected": false}'
-```
 
 ### Producir y consumir mensajes
 
@@ -138,6 +104,52 @@ Ahora que realizaste la configuración podés enviar mensajes al exchange. Dentr
 Luego, anda a la pestaña Queues, y en la sección Get Messages presioná el botón para obtener los mensajes. Deberías ver una imagen como la siguiente.
 
 ![message-show](doc/message-show.png)
+
+### Conecxión por MQTT
+
+La conexión por MQTT se realiza mediante el [plugin oficial de RabbitMQ](https://www.rabbitmq.com/mqtt.html). Es recomendable que leas la información para entender cómo trabaja. 
+
+Este proyecto está pre configurado para reenviar los topics que llegan por MQTT hacia el exchange `amq.topic`; del mismo todo, todo lo que se publica en el exchange `amq.topic` que concide con la suscripción MQTT es enviado hacia los clientes respectivos. Para conectarse al broker es necesario utilizar el usuario y contraseña definidos en las variables `mqtt.default_user` y `mqtt.default_pass` en el archivo `rabbitmq.config`. 
+
+En este ejemplo te vamos a mostrar como realizar una suscripción y publicación por MQTT usando los `Mosquitto Clients` del broker [Mosquitto](https://www.mosquitto.org) mediante un contenedor de docker. Las credenciales de acceso son las por defecto del archivo de configuración.
+
+Abrí una terminal y ejecutá este comando para suscribirte a todos eventos (`event/#`).
+
+```
+docker run --rm --net host eclipse-mosquitto mosquitto_sub -h localhost -p 1883 -u gotoiot -P gotoiot -t event/#
+```
+
+Luego, desde otra terminal corré el siguiente comando para publicar un topic `event/failure` con el payload `'{"sensor_connected": false}'`.
+
+```
+docker run --rm --net host eclipse-mosquitto mosquitto_pub -h localhost -p 1883 -u gotoiot -P gotoiot -t event/failure -m '{"sensor_connected": false}'
+```
+
+### Conexion MQTT por WebSockets
+
+Otra funcionalidad importante del proyecto, es que está configurado para poder conectarse al broker MQTT mediante WebSockets. Esto es una gran ventaja, ya que habilita a aplicaciones web a tener comunicación con MQTT y con el ecosistema RabbitMQ.
+
+Para esta funcionalidad se utiliza el [plugin Web MQTT](https://www.rabbitmq.com/web-mqtt.html) provisto por el core de RabbitMQ. El puerto por defecto (sin ninguna configuración extra) para WebSockets es 15675, al cual es necesario acceder con el usuario y contraseña configurados en el archivo `rabbit/rabbitmq.config`. 
+
+Dentro del archivo de configuración está seteado el puerto 9001 para WebSockets, aunque podés cambiarlo por cualquier otro. En caso que lo cambies, recorda configurar adecuadamente el binding de puertos de docker dentro del archivo `docker-compose.yml`.
+
+Para que puedas realizar una prueba de comunicación por WebSockets podés utilizar el proyecto [Web MQTT Client](https://github.com/gotoiot/web-mqtt-client) de nuestra organización, que es una terminal web donde podés configurar el broker, el puerto, usuario, y contraseña. Para una configuración por defecto, en la siguiente imagen podés ver una configuración de la herramienta donde se suscribe a un topic y luego se envía, mostrando la información en pantalla.
+
+![mqtt-websocket-demo](doc/mqtt-websocket-demo.png)
+
+### Ejecutar comandos dentro del broker
+
+Si vas a realizar configuraciones en particular dentro del broker, en la información en internet vas a encontrar que muchas veces se ejecutan comandos dentro del broker, que sería lo mismo que ingresar al panel de administración y realizarlos por ese medio.
+
+Para correr cualquier comando, primero necesitas saber el nombre del container del servicio, para ello, podes ejecutar el comando `docker ps` y ver su nombre. Luego, una vez que sepas el nombre corre el comando `docker exec -it CONTAINER_NAME /bin/sh` para ingresar dentro del contenedor.
+
+En este ejemplo, podés ver los pasos necesarios para crear un usuario llamado `myuser` con contraseña `mypass`, con permisos de administrador del sistema.
+
+```sh
+rabbitmqctl add_user myuser mypass
+rabbitmqctl set_permissions -p / myuser ".*" ".*" ".*"
+rabbitmqctl set_user_tags myuser management administrator
+```
 
 </details>
 
