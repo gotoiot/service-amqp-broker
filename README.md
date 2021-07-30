@@ -2,16 +2,22 @@
     <img src="doc/gotoiot-logo.png" alt="logo" title="Goto IoT" align="right" width="60" height="60" />
 </a>
 
-Service MQTT Broker
+Service AMQP Broker
 ===================
 
 *Ayudaría mucho si apoyaras este proyecto con una ⭐ en Github!*
 
-`MQTT` es un protocolo de red de publicación-suscripción abierto y liviano que transporta mensajes entre clientes. El protocolo se ejecuta sobre `TCP/IP` y está diseñado para conexiones con dispositivos y ancho de banda limitados.
+AMQP es un protocolo de colas que define el comportamiento de un servidor basado en exchanges y queues, que permite vincular a diferentes aplicaciones en múltiples lenguajes de programación, tanto internas como de terceros, mediante un `Mensaje AMQP` que representa la unidad de información a intercambiar.
 
-Un `broker` MQTT es un servicio que recibe los mensajes y los enruta a los clientes de destino adecuados. Un cliente MQTT es cualquier dispositivo (desde un microcontrolador hasta un servidor completo) que ejecuta una biblioteca MQTT y se conecta a un broker a través de una red.
+RabbitMQ es un broker que implementa la especificación `AMQP 0-9-1`, y además de soportar el comportamiento estandar del protocolo, posee extensiones a modo plugins donde se pueden interconectar diferentes protocolos como MQTT, MQTT sobre WebSockets, STOMP, HTTP, y más. Además cuenta con un administrador web que lo hace muy conveniente para configurarlo.
 
-Para este proyecto el broker implementado es `Mosquitto` y se ejecuta sobre el ecosistema `Docker`, de manera que pueda correr de igual manera en diversas plataformas.
+En este proyecto, además de soportar el protocolo `AMQP 0-9-1` vamos a hacer uso de la extensión `MQTT`, que te va a permitir correr un broker MQTT que se vinculará al broker RabbitMQ y permitirá conectar dispositivos con recursos limitados - como microcontroladores - con un protocolo altamente escalable, donde podrá intercambiar información con otros servicios y dispositivos.
+
+Para que tengas una idea más clara sobre RabbitMQ y su configuración orientada a proyectos IoT, en esta imagen podés ver la arquitectura de la aplicación, y cómo poder conectar un dispositivo mediante MQTT e integrarlo dentro del ecosistema RabbitMQ.
+
+![rabbitmq_layout](doc/rabbitmq_layout.png)
+
+> Para que entiendas el alcance de este proyecto, es recomendable que leas la [Introducción a AMQP](https://www.gotoiot.com/pages/articles/amqp_intro/index.html) y la [Introducción a RabbitMQ](https://www.gotoiot.com/pages/articles/rabbitmq_intro/index.html) que se encuentran publicadas en nuestra web.
 
 ## Instalar las dependencias 🔩
 
@@ -27,17 +33,21 @@ En caso que tengas algún incoveniente o quieras profundizar al respecto, podes 
 
 ## Descargar el código 💾
 
-Para descargar el código, lo más conveniente es que realices un `fork` de este proyecto a tu cuenta personal haciendo click en [este link](https://github.com/gotoiot/service-mqtt-broker/fork). Una vez que ya tengas el fork a tu cuenta, descargalo con este comando (acordate de poner tu usuario en el link):
+Para descargar el código, lo más conveniente es que realices un `fork` de este proyecto a tu cuenta personal haciendo click en [este link](https://github.com/gotoiot/service-amqp-broker/fork). Una vez que ya tengas el fork a tu cuenta, descargalo con este comando (acordate de poner tu usuario en el link):
 
 ```
-git clone https://github.com/USER/service-mqtt-broker.git
+git clone https://github.com/USER/service-amqp-broker.git
 ```
 
 > En caso que no tengas una cuenta en Github podes clonar directamente este repo.
 
 ## Ejecutar la aplicación 🚀
 
-Cuando tengas el código descargado, desde una terminal en la raíz del proyecto ejecuta el comando `docker-compose up` que se va descargar la imagen de Docker del broker y ponerlo en marcha. Una vez que el broker esté corriendo ya podés conectar distintos clientes.
+Cuando tengas el código descargado, desde una terminal en la raíz del proyecto ejecuta el comando `docker-compose up -d` que se va descargar la imagen de Docker del broker y ponerlo en marcha. 
+
+Una vez que el broker inicie, espera unos momentos a que se realicen las configuraciones iniciales, y luego desde un navegador ingresa en la URL [http://localhost:15672](http://localhost:15672) que te va a llevar al portal de administración de RabbitMQ. Accede con el usuario `gotoiot` y contraseña `gotoiot`. Si pudiste accceder significa que el broker se encuentra funcionando correctamente.
+
+Continua explorando la Información Util del proyecto para concer más detalles.
 
 ## Información útil 🔍
 
@@ -45,11 +55,89 @@ En esta sección vas a encontrar información que te va a servir para tener un m
 
 <details><summary><b>Mira todos los detalles</b></summary>
 
-### Configuración del broker
+### Configuración del servicio
 
-El archivo `docker-compose.yml` administra los parámetros de ejecución del broker. Está basado en `Mosquitto` y soporta la conexión por Websockets en el puerto 9001, MQTT en el 1883 y el 8883 para comunicación con autenticación.
+El archivo `docker-compose.yml` administra los parámetros generales de ejecución del broker. Está basado en la imagen oficial de `RabbitMQ` y soporta la conexión el protocolo AMQP en el binding de puertos 5672:5672, la comunicación por MQTT en 1883:1883, MQTT por WebSockets en 15675:15675 y la comunicación para el administrador del broker por http en el puerto 15672:15672.
 
-Si querés modificar algún parámetro de configuración del broker podés hacerlo desde el archivo `config/mosquitto.conf`. En caso que quieras que los clientes se conecten al broker con usuario y contraseña descomentá la línea `password_file /etc/mosquitto/pass.txt` y agregá la contraseña de conexión dentro del archivo `auth/pass.txt`.
+Así mismo, dentro del archivo docker-compose se definen los bind volumes que se comparten con el broker. Todos se encuentran mapeados dentro del directorio `rabbitmq` y se definen de la siguiente manera:
+
+* **enable_plugins:** En este archivo se pueden especificar los plugins habilitados por el broker. Si querés saber más al respecto podés ingresar a [este link](https://www.rabbitmq.com/plugins.html).
+* **rabbitmq-env.conf**: Este es el archivo donde se comparten las variables de entorno con las que inicia el broker. Si querés saber más al respecto podés ingresar a [este link](https://www.rabbitmq.com/configure.html#customise-environment).
+* **rabbitmq.conf**: Este es el archivo donde se realiza la configuración específica del broker. Para este proyecto mayormente se realiza la configuración para MQTT y también desde qué path tomar las definiciones. Si querés saber más al respecto podés ingresar a [este link](https://www.rabbitmq.com/configure.html).
+* **definitions.json**: Este archivo permite crear las definiciones de todo el broker antes de comenzar su ejecución y sin tener que hacerlo manualmente. Esta característica es puntualmente útil ya que se puede compartir el entorno de ejecución del broker sin necesidad de configuraciones manuales. Si querés saber más al respecto podés ingresar a [este link](https://github.com/tyranron/lapin-issue-133-example/blob/master/rabbitmq-definitions.json).
+
+### Definiciones en el broker
+
+Tal como vimos en el apartado anterior, el archivo `definitions.json` tiene toda la declaración de entidades, usuarios, permisos, exchanges, queues y bindings, que se realizan de manera automática al iniciar el broker.
+
+Esta característica resulta realmente útil para compartir la información, por lo que es recomendable que siempre que quieras realizar un proyecto lo tengas en cuenta y trates de realizarla mediante este archivo.
+
+En [este link](https://github.com/tyranron/lapin-issue-133-example/blob/master/rabbitmq-definitions.json) podés ver un ejemplo completo de definiciones que lo podés tomar como punto de partida para realizar tus configuraciones. 
+
+Este proyecto trae algunas definiciones preestablecidas, y podés modificarla a tus necesidades editando el archivo `definitions.json`.
+
+### Ejecutar comandos dentro del broker
+
+Si vas a realizar configuraciones en particular dentro del broker, en la información en internet vas a encontrar que muchas veces se ejecutan comandos dentro del broker, que sería lo mismo que ingresar al panel de administración y realizarlos por ese medio.
+
+Para correr cualquier comando, primero necesitas saber el nombre del container del servicio, para ello, podes ejecutar el comando `docker ps` y ver su nombre. Luego, una vez que sepas el nombre corre el comando `docker exec -it CONTAINER_NAME /bin/sh` para ingresar dentro del contenedor.
+
+En este ejemplo, podés ver los pasos necesarios para crear un usuario llamado `myuser` con contraseña `mypass`, con permisos de administrador del sistema.
+
+```sh
+rabbitmqctl add_user myuser mypass
+rabbitmqctl set_permissions -p / myuser ".*" ".*" ".*"
+rabbitmqctl set_user_tags myuser management administrator
+```
+
+
+### Conecxión por MQTT
+
+La conexión por MQTT se realiza mediante el [plugin oficial de RabbitMQ](https://www.rabbitmq.com/mqtt.html). Es recomendable que leas la información para entender cómo trabaja. 
+
+Este proyecto está pre configurado para reenviar los topics que llegan por MQTT hacia el exchange `amq.topic`; del mismo todo, todo lo que se publica en el exchange `amq.topic` que concide con la suscripción MQTT es enviado hacia los clientes respectivos. Para conectarse al broker es necesario utilizar el usuario y contraseña definidos en las variables `mqtt.default_user` y `mqtt.default_pass` en el archivo `rabbitmq.config`. 
+
+En este ejemplo te vamos a mostrar como realizar una suscripción y publicación por MQTT usando los `Mosquitto Clients` del broker [Mosquitto](https://www.mosquitto.org) mediante un contenedor de docker. Las credenciales de acceso son las por defecto del archivo de configuración.
+
+Abrí una terminal y ejecutá este comando para suscribirte a todos eventos (`event/#`).
+
+```
+docker run --rm --net host eclipse-mosquitto mosquitto_sub -h localhost -p 1883 -u gotoiot -P gotoiot -t event/#
+```
+
+Luego, desde otra terminal corré el siguiente comando para publicar un topic `event/failure` con el payload `'{"sensor_connected": false}'`.
+
+```
+docker run --rm --net host eclipse-mosquitto mosquitto_pub -h localhost -p 1883 -u gotoiot -P gotoiot -t event/failure -m '{"sensor_connected": false}'
+```
+
+### Producir y consumir mensajes
+
+Para poder realizar una comunicación entre un productor y un consumidor es necesario que el productor se conecte a un exchange, un consumidor a una queue, y que haya un binding (routing_key) que vincule estas dos entidades.
+
+Para este ejemplo vamos a utilizar el exchange que se crea por defecto `amq.topic` (un exchange basado en topic), una queue que se llame `events`, y un binding que vincule el exchange `amq.topic` con la queue `events` utilizando la routing key `event.*` que permitira recibir cualquier tipo de eventos que comiencen con `event.`, como por ejemplo `event.alarm`, `event.user`, pero no algo como `user.logout`.
+
+Como primera medida debés logearte en el [admin de RabbitMQ](http://localhost:15672) con el usuario y contraseña que figuran en el archivo `definitions.json` (el usuario por defecto es `gotoiot` y contraseña `gotoiot`). Luego accedé a la pestaña `Queues` en la parte superior.
+
+Dentro de la pestaña `Queues`, en la opción `Add a new queue` ingresa los datos como se muestran en esta imagen.
+
+![queue-create](doc/queue-create.png)
+
+Luego, anda a la pestaña de `Exchanges`, y en la lista de exchanges disponibles hacé click sobre el exchange `amq.topic`. Dentro de la descripción del exchange, anda a la opción `Add binding from this exchange` y realiza la siguiente configuración.
+
+![bind-create](doc/bind-create.png)
+
+Al realizar el paso anterior, dentro de los bindings deberías ver el que acabas de realizar, como en esta imagen. Tene en cuenta que podés ver mas de una queue asociada a un exchange.
+
+![bind-show](doc/bind-show.png)
+
+Ahora que realizaste la configuración podés enviar mensajes al exchange. Dentro de la sección `Exchanges->Publish Message` realiza el envío de un mensaje como este.
+
+![message-create](doc/message-create.png)
+
+Luego, anda a la pestaña Queues, y en la sección Get Messages presioná el botón para obtener los mensajes. Deberías ver una imagen como la siguiente.
+
+![message-show](doc/message-show.png)
 
 </details>
 
@@ -59,13 +147,13 @@ Si querés modificar algún parámetro de configuración del broker podés hacer
 
 * [Docker](https://www.docker.com/) - Ecosistema que permite la ejecución de contenedores de software.
 * [Docker Compose](https://docs.docker.com/compose/) - Herramienta que permite administrar múltiples contenedores de Docker.
-* [Mosquitto](https://mosquitto.org/) - Broker MQTT libre y abierto creado por Eclipse Foundation.
+* [RabbitMQ](https://rabbitmq.com/) - Broker AMQP libre y abierto ampliamente utilizado.
 
 </details>
 
 ## Contribuir 🖇️
 
-Si estás interesado en el proyecto y te gustaría sumar fuerzas para que siga creciendo y mejorando, podés abrir un hilo de discusión para charlar tus propuestas en [este link](https://github.com/gotoiot/service-mqtt-broker/issues/new). Así mismo podés leer el archivo [Contribuir.md](https://github.com/gotoiot/gotoiot-doc/wiki/Contribuir) de nuestra Wiki donde están bien explicados los pasos para que puedas enviarnos pull requests.
+Si estás interesado en el proyecto y te gustaría sumar fuerzas para que siga creciendo y mejorando, podés abrir un hilo de discusión para charlar tus propuestas en [este link](https://github.com/gotoiot/service-amqp-broker/issues/new). Así mismo podés leer el archivo [Contribuir.md](https://github.com/gotoiot/gotoiot-doc/wiki/Contribuir) de nuestra Wiki donde están bien explicados los pasos para que puedas enviarnos pull requests.
 
 ## Sobre Goto IoT 📖
 
@@ -92,7 +180,7 @@ Las colaboraciones principales fueron realizadas por:
 
 * **[Agustin Bassi](https://github.com/agustinBassi)**: Ideación, puesta en marcha y mantenimiento del proyecto.
 
-También podés mirar todas las personas que han participado en la [lista completa de contribuyentes](https://github.com/gotoiot/service-mqtt-broker/contributors).
+También podés mirar todas las personas que han participado en la [lista completa de contribuyentes](https://github.com/gotoiot/service-amqp-broker/contributors).
 
 ## Licencia 📄
 
@@ -100,4 +188,4 @@ Este proyecto está bajo Licencia ([MIT](https://choosealicense.com/licenses/mit
 
 ---
 
-**Copyright © Goto IoT 2021** ⌨️ [**Website**](https://www.gotoiot.com) ⌨️ [**Group**](https://groups.google.com/g/gotoiot) ⌨️ [**Github**](https://www.github.com/gotoiot) ⌨️ [**Twitter**](https://www.twitter.com/gotoiot) ⌨️ [**Wiki**](https://github.com/gotoiot/doc/wiki)
+**Copyright © Goto IoT 2021** - [**Website**](https://www.gotoiot.com) - [**Group**](https://groups.google.com/g/gotoiot) - [**Github**](https://www.github.com/gotoiot) - [**Twitter**](https://www.twitter.com/gotoiot) - [**Wiki**](https://github.com/gotoiot/doc/wiki)
