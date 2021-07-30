@@ -4,17 +4,17 @@ services:
   rabbitmq:
     image: rabbitmq:3.8.9-management
     hostname: rabbitmq
-    restart: always
-    tty: true
-    stdin_open: true
-    # network_mode: host
     volumes:
-        # - ./config/rabbitmq.config:/etc/rabbitmq/rabbitmq.config
-        - ./plugins/enable_plugins:/etc/rabbitmq/enabled_plugins:ro
-        - ./_db:/var/lib/rabbitmq/mnesia
-        # More plugins on:
-        # https://www.rabbitmq.com/plugins.html
-        # https://www.rabbitmq.com/community-plugins.html
+      # file to configure plugins enabled
+      - ./rabbitmq/enable_plugins:/etc/rabbitmq/enabled_plugins:ro
+      # file to share environment variables
+      - ./rabbitmq/rabbitmq-env.conf:/etc/rabbitmq/rabbitmq-env.conf:ro
+      # file to configure RabbitMQ server
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      # file to create users, exchanges, queues, bindings at startup
+      - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      # dir to store persistent data
+      - ./rabbitmq/data/:/var/lib/rabbitmq/mnesia
     ports:
         # HTTP DASHBOARD FOR MANAGEMENT
         - "15672:15672"
