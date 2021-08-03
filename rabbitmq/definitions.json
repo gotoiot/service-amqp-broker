@@ -21,25 +21,6 @@
         }
     ],
     "exchanges": [],
-    "queues": [
-        {
-            "name": "devices",
-            "vhost": "/",
-            "durable": true,
-            "auto_delete": false,
-            "arguments": {
-                "x-message-ttl": 3600000
-            }
-        }
-    ],
-    "bindings": [
-        {
-            "source": "amq.topic",
-            "vhost": "/",
-            "destination": "devices",
-            "destination_type": "queue",
-            "routing_key": "device.*",
-            "arguments": {}
-        }
-    ]
+    "queues": [],
+    "bindings": []
 }
