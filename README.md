@@ -57,7 +57,7 @@ En esta sección vas a encontrar información que te va a servir para tener un m
 
 ### Configuración del servicio
 
-El archivo `docker-compose.yml` administra los parámetros generales de ejecución del broker. Está basado en la imagen oficial de `RabbitMQ` y soporta la conexión el protocolo AMQP en el binding de puertos 5672:5672, la comunicación por MQTT en 1883:1883, MQTT por WebSockets en 9001:9001 y la comunicación para el administrador del broker por http en el puerto 15672:15672. Así mismo, si el broker viene con unos ejemplos para WebSockets configurados en el binding de puertos 9002:9002.
+El archivo `docker-compose.yml` administra los parámetros generales de ejecución del broker. Está basado en la imagen oficial de `RabbitMQ` y soporta la conexión con el protocolo AMQP en el binding de puertos 5672:5672, la comunicación por MQTT en 1883:1883, MQTT por WebSockets en 9001:9001 y la comunicación para el administrador del broker por HTTP en el puerto 15672:15672. Así mismo, el broker viene con unos ejemplos para WebSockets configurados en el binding de puertos 9002:9002.
 
 También, dentro del archivo `docker-compose.yml` se definen los bind volumes que se comparten con el broker. Todos se encuentran mapeados dentro del directorio `rabbitmq` y se definen de la siguiente manera:
 
@@ -75,6 +75,8 @@ En [este link](https://github.com/tyranron/lapin-issue-133-example/blob/master/r
 ### Producir y consumir mensajes
 
 Para poder realizar una comunicación entre un productor y un consumidor es necesario que el productor se conecte a un exchange, un consumidor a una queue, y que haya un binding (routing_key) que vincule estas dos entidades.
+
+<details><summary><b>Mira cómo producir mensajes desde el administrador de RabbitMQ</b></summary><br>
 
 Para este ejemplo vamos a utilizar el exchange que se crea por defecto `amq.topic` (un exchange basado en topic), una queue que se llame `events`, y un binding que vincule el exchange `amq.topic` con la queue `events` utilizando la routing key `event.*` que permitira recibir cualquier tipo de eventos que comiencen con `event.`, como por ejemplo `event.alarm`, `event.user`, pero no algo como `user.logout`.
 
@@ -100,25 +102,53 @@ Luego, anda a la pestaña Queues, y en la sección Get Messages presioná el bot
 
 ![message-show](doc/message-show.png)
 
+</details>
+
 ### Conexión por MQTT
 
-La conexión por MQTT se realiza mediante el [plugin oficial de RabbitMQ](https://www.rabbitmq.com/mqtt.html). Es recomendable que leas la información para entender cómo trabaja. 
+La conexión por MQTT se realiza mediante el `plugin oficial de RabbitMQ`. Es recomendable que leas [la documentación](https://www.rabbitmq.com/mqtt.html) para entender cómo trabaja. 
 
-Este servicio está pre configurado para reenviar los topics que llegan por MQTT hacia el exchange por defecto `amq.topic`; del mismo todo, todo lo que se publica en el exchange `amq.topic` que concide con la suscripción MQTT es enviado hacia los clientes respectivos. Para conectarse al broker es necesario utilizar el usuario y contraseña definidos en las variables `mqtt.default_user` y `mqtt.default_pass` en el archivo `rabbitmq.config`. 
+<details><summary><b>Mira los detalles sobre MQTT</b></summary><br>
+
+**Funcionamiento del plugin**
+
+Para que tengas un poco de contexto respecto al funcionamiento del plugin, podemos decir que soporta MQTT 3.1.1, los niveles de calidad de servicio QoS0 y QoS1 (los mensajes con QoS2 son pasados a QoS1 automáticamente), los mensajes LWT (Last Will and Testament), TLS y retención de mensajes. Utilizando el plugin de MQTT es posible interactuar con otros clientes con AMQP 0-9-1, AMQP 1.0 y STOMP.
+
+Para habilitarlo podés hacerlo de al menos dos maneras. Ingresando en ejecutar comandos dentro del broker (como está mostrado en la sección `Ejecutar comandos`) y corriendo el comando `rabbitmq-plugins enable rabbitmq_mqtt` o bien asegurando que se encuentre dentro del archivo `enable_plugins`.
+
+Para darle una capa de seguridad al broker, será necesario que crees un usuario y una contraseña correspondiente para que puedan conectarse los clientes por MQTT. En la [sección de autenticación](https://www.rabbitmq.com/mqtt.html#authentication) de la documentación, se muestran los comandos para crear un usuario afin.
+
+El plugin está creado sobre las entidades core (exchanges y queues) de RabbitMQ. Los mensajes publicados usando MQTT son mapeados internamente al exchange `amq.topic` creado por defecto. Los suscriptores - tanto MQTT como otros - consumen de las colas de RabbitMQ vinculadas al exchange `amq.topic`. Esto permite la interoperabilidad con otros protocolos y hace posible usar el panel de administración para inspeccionar las colas correspondientes.
+
+Tené en cuenta que MQTT utiliza barras inclinadas ("/") para separadores de topics y AMQP 0-9-1 utiliza puntos. El plugin MQTT traduce estos patrones hacia ambos lados automáticamente. Por ejemplo, `sensor/humidity` se convierte en `sensor.humidity` y viceversa. Hay que tener en cuenta una advertencia: evita usa el caracter `"/"` y `"."` en ambos protocolos, ya que se pueden generar comportamientos inesperados.
+
+**Configuración del plugin en este servicio**
+
+Utilizando parte de las características por defecto, este servicio está pre configurado para reenviar los topics que llegan por MQTT hacia el exchange por defecto `amq.topic`; del mismo todo, todo lo que se publica en el exchange `amq.topic` que concide con la suscripción MQTT es enviado hacia los clientes respectivos. 
+
+Para conectarse al broker es necesario utilizar el usuario y contraseña definidos en las variables `mqtt.default_user` y `mqtt.default_pass` en el archivo `rabbitmq.config`. Así mismo existen otras configuraciones útiles que resultan interesantes destacar. Por ejemplo el plug `mqtt.allow_anonymous` permite que se conecten usuarios sin autenticación. Para darle un punto de seguridad al broker, en este servicio esa funcionalidad está deshabilitada.
+
+Para realizar alguna modificación en particular, como por ejemplo el exchange al cual se conectan los topics MQTT, los puertos por defecto, usuarios, y otros, directamente edita el archivo `rabbitmq/rabbitmq.config`.
+
+**Ejemplo de comunicación**
 
 En este ejemplo te vamos a mostrar como realizar una suscripción y publicación por MQTT usando los `Mosquitto Clients` del broker [Mosquitto](https://www.mosquitto.org) mediante un contenedor de docker. Las credenciales de acceso son las por defecto del archivo de configuración.
 
 Abrí una terminal y ejecutá este comando para suscribirte a todos eventos (`event/#`).
 
 ```
-docker run --rm --net host eclipse-mosquitto mosquitto_sub -h localhost -p 1883 -u gotoiot -P gotoiot -t event/#
+docker run --rm --net host eclipse-mosquitto \
+mosquitto_sub -h localhost -p 1883 -u gotoiot -P gotoiot -t event/#
 ```
 
 Luego, desde otra terminal corré el siguiente comando para publicar un topic `event/failure` con el payload `'{"sensor_connected": false}'`.
 
 ```
-docker run --rm --net host eclipse-mosquitto mosquitto_pub -h localhost -p 1883 -u gotoiot -P gotoiot -t event/failure -m '{"sensor_connected": false}'
+docker run --rm --net host eclipse-mosquitto \
+mosquitto_pub -h localhost -p 1883 -u gotoiot -P gotoiot -t event/failure -m '{"sensor_connected": false}'
 ```
+
+</details>
 
 ### Conexion MQTT por WebSockets
 
