@@ -160,6 +160,72 @@ Para que puedas realizar una prueba de comunicación MQTT por WebSockets podés 
 
 ![mqtt-websocket-demo](doc/mqtt-websocket-demo.png)
 
+### Conexión por HTTP
+
+En muchos casos puede resultar particularmente útil conectarse al broker RabbitMQ por HTTP. Esto va a permitir conectar clientes que no soporten nativamente las bibliotecas AMQP, o bien establecer una comunicación desde un navegador web, ya que actualmente no se cuenta con soporte web nativo para AMQP.
+
+<details><summary><b>Mira los detalles sobre HTTP</b></summary><br>
+
+Para poder conectarte por HTTP al broker, es necesario que esté habilitado el `plugin rabbitmq_management` que es el mismo que te permite acceder al panel de administración. Es decir, que todos los comandos y acciones que se pueden realizar desde el panel de administración las podrías realizar desde cualquier cliente HTTP.
+
+Para demostrarte el funcionamiento por HTTP vamos a hacer uso de la herramienta `cURL` ampliamente utilizada, la cual la vamos a ejecutar mediante un contenedor de Docker. 
+
+Como primera medida vamos a crear un exchange llamado `gotoiot.http` del tipo `direct`, con el usuario y contraseña `gotoiot:gotoiot`, y además algunos settings necesarios para la creación.
+
+```
+docker run --rm --net host curlimages/curl curl \
+-i -u gotoiot:gotoiot \
+-H "content-type:application/json" \
+-X POST http://localhost:15672/api/exchanges/%2f/gotoiot.http \
+-d '{"type": "direct", "auto_delete": false, "durable": true, "internal": false, "arguments": {}}'
+```
+
+El siguiente paso será crear una queue llamada `http.queue` con los settings necesarios para la creación.
+
+```
+docker run --rm --net host curlimages/curl curl \
+-i -u gotoiot:gotoiot \
+-H "content-type:application/json" \
+-X PUT http://localhost:15672/api/queues/%2f/http.queue \
+-d '{"auto_delete": false, "durable": true, "arguments": {}}'
+```
+
+Ahora que ya contamos con el exchange y la queue, vamos a crear un binding que una a ambas entidades utilizando la routing_key `event`.
+
+```
+docker run --rm --net host curlimages/curl curl \
+-i -u gotoiot:gotoiot \
+-H "content-type:application/json" \
+-X POST http://localhost:15672/api/bindings/%2f/e/gotoiot.http/q/http.queue \
+-d '{"routing_key": "events", "arguments": {}}'
+```
+
+Ahora que ya contamos con el exchange, la queue y el binding, enviemos un mensaje al exchange `gotoiot.http`, con la routing key `event` y el mensaje `USER_REGISTRATION`.
+
+```
+docker run --rm --net host curlimages/curl curl \
+-i -u gotoiot:gotoiot \
+-H "content-type:application/json" \
+-X POST http://localhost:15672/api/exchanges/%2f/gotoiot.http/publish \
+-d '{"routing_key": "events", "payload": "USER_REGISTRATION", "payload_encoding": "string", "properties": {}}'
+```
+
+Finalmente, una vez que se haya enviado el mensaje es momento de consumirlo. Para ello vamos a obtener de la HTTP API los datos de la queue `http.queue`.
+
+```
+docker run --rm --net host curlimages/curl curl \
+-i -u gotoiot:gotoiot \
+-H "content-type:application/json" \
+-X POST http://localhost:15672/api/queues/%2f/http.queue/get \
+-d '{"count": 10, "requeue": true, "encoding": "auto", "truncate": 50000, "ackmode": "ack_requeue_false"}'
+```
+
+Con los pasos anteriores se demuestra la comunicación entre un cliente HTTP y la REST API del administrador de RabbitMQ. Estas mismas interacciones podés realizarla desde cualquier cliente HTTP en cualquier lenguaje de programación. De todas maneras, tené en cuenta que esta API no está pensada para un alto intercambio de mensajes, sino más bien para integrar clientes que no soportan el protocolo AMQP o MQTT de manera nativa.
+
+Si querés ver los detalles completos de la REST API del administrador de RabbitMQ podés ingresar en [este link](https://pulse.mozilla.org/api/).
+
+</details>
+
 ### Ejecutar comandos dentro del broker
 
 Si vas a realizar configuraciones en particular dentro del broker, es comun ejecutar comandos dentro del broker, que realizan la misma acción que desde el panel de administración.
