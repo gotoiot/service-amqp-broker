@@ -13,9 +13,11 @@ RabbitMQ es un broker que implementa la especificación `AMQP 0-9-1`, y además 
 
 Este servicio, además de soportar el protocolo `AMQP 0-9-1` hace uso del plugin `MQTT` y `Web MQTT`, que va a correr un broker MQTT asociado al broker RabbitMQ y te va a permitir conectarte mediante clientes MQTT como microcontroladores, asi como también con clientes web, desde el navegador. Realizando esta integración se tiene un puente entre clientes MQTT con un protocolo altamente escalable, donde podrá intercambiar información con otros servicios y dispositivos.
 
-Para que tengas una idea más clara sobre la configuración de este servicio, en esta imagen podés ver cómo está armada la arquitectura, y cómo se integra un cliente MQTT dentro del ecosistema RabbitMQ.
+Así mismo, en este servicio se implementa el plugin `rabbitmq_management`. Este servicio es un servidor web que te permite acceder al administrador desde una página para poder administrar todo el broker. También, al ser un servidor web, tiene una interfaz HTTP que te permite acceder al broker de RabbitMQ mediante cualquier cliente HTTP. De esta manera, podés integrar cualquier aplicación HTTP con todo el ecosistema, publicar y consumir mensajes.
 
-![rabbitmq_layout](doc/rabbitmq_layout.png)
+Para que tengas una idea más clara sobre la configuración de este servicio, en esta imagen podés ver cómo está armada la arquitectura, y cómo se integra tanto el broker MQTT - y sus respectivos clientes - como el servidor web del administrador - también con sus clientes HTTP - dentro del ecosistema RabbitMQ.
+
+![rabbitmq_layout](doc/rabbitmq_layout_2.png)
 
 > Para que entiendas el alcance de este proyecto, es recomendable que leas la [Introducción a AMQP](https://www.gotoiot.com/pages/articles/amqp_intro/index.html) y la [Introducción a RabbitMQ](https://www.gotoiot.com/pages/articles/rabbitmq_intro/index.html) que se encuentran publicadas en nuestra web.
 
@@ -53,9 +55,11 @@ Continua explorando la Información Util del proyecto para concer más detalles.
 
 En esta sección vas a encontrar información que te va a servir para tener un mayor contexto.
 
-<details><summary><b>Mira todos los detalles</b></summary>
+<details><summary><b>Accedé a todos los detalles importantes</b></summary>
 
 ### Configuración del servicio
+
+<details><summary><b>Ver detalles de configuración</b></summary>
 
 El archivo `docker-compose.yml` administra los parámetros generales de ejecución del broker. Está basado en la imagen oficial de `RabbitMQ` y soporta la conexión con el protocolo AMQP en el binding de puertos 5672:5672, la comunicación por MQTT en 1883:1883, MQTT por WebSockets en 9001:9001 y la comunicación para el administrador del broker por HTTP en el puerto 15672:15672. Así mismo, el broker viene con unos ejemplos para WebSockets configurados en el binding de puertos 9002:9002.
 
@@ -66,17 +70,23 @@ También, dentro del archivo `docker-compose.yml` se definen los bind volumes qu
 * **rabbitmq.conf**: Este es el archivo donde se realiza la configuración específica del broker. Para este proyecto mayormente se realiza la configuración para MQTT y también desde qué path tomar las definiciones. Si querés saber más al respecto podés ingresar a [este link](https://www.rabbitmq.com/configure.html).
 * **definitions.json**: Este archivo permite crear las definiciones de todo el broker antes de comenzar su ejecución y sin tener que hacerlo manualmente. Si querés saber más al respecto podés ingresar a [este link](https://github.com/tyranron/lapin-issue-133-example/blob/master/rabbitmq-definitions.json).
 
+</details>
+
 ### Definiciones en el broker
+
+<details><summary><b>Ver definiciones</b></summary>
 
 Tal como vimos, el archivo `definitions.json` tiene toda la declaración de entidades, usuarios, permisos, exchanges, queues y bindings, que se realizan de manera automática al iniciar el broker. Esta característica resulta realmente útil para compartir la información, por lo que es recomendable que siempre que quieras realizar un proyecto lo tengas en cuenta y trates de realizarla mediante este archivo.
 
 En [este link](https://github.com/tyranron/lapin-issue-133-example/blob/master/rabbitmq-definitions.json) podés ver un ejemplo completo de definiciones que lo podés tomar como punto de partida para realizar tus configuraciones. Este proyecto trae algunas definiciones preestablecidas, y podés modificarla a tus necesidades editando el archivo `definitions.json`.
 
+</details>
+
 ### Producir y consumir mensajes
 
-Para poder realizar una comunicación entre un productor y un consumidor es necesario que el productor se conecte a un exchange, un consumidor a una queue, y que haya un binding (routing_key) que vincule estas dos entidades.
+<details><summary><b>Mira la info sobre los mensajes</b></summary><br>
 
-<details><summary><b>Mira cómo producir mensajes desde el administrador de RabbitMQ</b></summary><br>
+Para poder realizar una comunicación entre un productor y un consumidor es necesario que el productor se conecte a un exchange, un consumidor a una queue, y que haya un binding (routing_key) que vincule estas dos entidades.
 
 Para este ejemplo vamos a utilizar el exchange que se crea por defecto `amq.topic` (un exchange basado en topic), una queue que se llame `events`, y un binding que vincule el exchange `amq.topic` con la queue `events` utilizando la routing key `event.*` que permitira recibir cualquier tipo de eventos que comiencen con `event.`, como por ejemplo `event.alarm`, `event.user`, pero no algo como `user.logout`.
 
@@ -104,11 +114,11 @@ Luego, anda a la pestaña Queues, y en la sección Get Messages presioná el bot
 
 </details>
 
-### Conexión por MQTT
-
-La conexión por MQTT se realiza mediante el `plugin oficial de RabbitMQ`. Es recomendable que leas [la documentación](https://www.rabbitmq.com/mqtt.html) para entender cómo trabaja. 
+### Conexión por MQTT plano
 
 <details><summary><b>Mira los detalles sobre MQTT</b></summary><br>
+
+La conexión por MQTT se realiza mediante el `plugin oficial de RabbitMQ`. Es recomendable que leas [la documentación](https://www.rabbitmq.com/mqtt.html) para entender cómo trabaja. 
 
 **Funcionamiento del plugin**
 
@@ -152,6 +162,8 @@ mosquitto_pub -h localhost -p 1883 -u gotoiot -P gotoiot -t event/failure -m '{"
 
 ### Conexion MQTT por WebSockets
 
+<details><summary><b>Mira los detalles sobre MQTT por WebSockets</b></summary><br>
+
 Otra funcionalidad importante del proyecto, es que está configurado para poder conectarse al broker MQTT mediante WebSockets. Esto es una gran ventaja, ya que habilita a aplicaciones web a tener comunicación con MQTT y con el ecosistema RabbitMQ.
 
 Para esta funcionalidad se utiliza el [plugin Web MQTT](https://www.rabbitmq.com/web-mqtt.html) provisto por el core de RabbitMQ. El puerto de conexión MQTT por WebSockets es el 9001, al cual es necesario acceder con el usuario y contraseña. Tanto la configuración del puerto para WebSockets como el usuario y contraseña se encuentran en el archivo `rabbit/rabbitmq.config`. 
@@ -160,11 +172,13 @@ Para que puedas realizar una prueba de comunicación MQTT por WebSockets podés 
 
 ![mqtt-websocket-demo](doc/mqtt-websocket-demo.png)
 
+</details>
+
 ### Conexión por HTTP
 
-En muchos casos puede resultar particularmente útil conectarse al broker RabbitMQ por HTTP. Esto va a permitir conectar clientes que no soporten nativamente las bibliotecas AMQP, o bien establecer una comunicación desde un navegador web, ya que actualmente no se cuenta con soporte web nativo para AMQP.
-
 <details><summary><b>Mira los detalles sobre HTTP</b></summary><br>
+
+En muchos casos puede resultar particularmente útil conectarse al broker RabbitMQ por HTTP. Esto va a permitir conectar clientes que no soporten nativamente las bibliotecas AMQP, o bien establecer una comunicación desde un navegador web, ya que actualmente no se cuenta con soporte web nativo para AMQP.
 
 Para poder conectarte por HTTP al broker, es necesario que esté habilitado el `plugin rabbitmq_management` que es el mismo que te permite acceder al panel de administración. Es decir, que todos los comandos y acciones que se pueden realizar desde el panel de administración las podrías realizar desde cualquier cliente HTTP.
 
@@ -228,6 +242,8 @@ Si querés ver los detalles completos de la REST API del administrador de Rabbit
 
 ### Ejecutar comandos dentro del broker
 
+<details><summary><b>Ver la ejecución de comandos</b></summary><br>
+
 Si vas a realizar configuraciones en particular dentro del broker, es comun ejecutar comandos dentro del broker, que realizan la misma acción que desde el panel de administración.
 
 Para correr cualquier comando, primero necesitas saber el nombre del container del servicio, para ello, podes ejecutar el comando `docker ps` y ver su nombre. Luego, una vez que sepas el nombre corre el comando `docker exec -it CONTAINER_NAME /bin/sh` para ingresar dentro del contenedor.
@@ -239,6 +255,8 @@ rabbitmqctl add_user myuser mypass
 rabbitmqctl set_permissions -p / myuser ".*" ".*" ".*"
 rabbitmqctl set_user_tags myuser management administrator
 ```
+
+</details>
 
 </details>
 
