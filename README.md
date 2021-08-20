@@ -9,17 +9,17 @@ Service AMQP Broker
 
 AMQP es un protocolo de colas que define el comportamiento de un servidor basado en exchanges y queues, que permite vincular a diferentes aplicaciones en múltiples lenguajes de programación, tanto internas como de terceros, mediante un `Mensaje AMQP` que representa la unidad de información a intercambiar.
 
-RabbitMQ es un broker que implementa la especificación `AMQP 0-9-1`, y además de soportar el comportamiento estándar, posee extensiones a modo plugins donde se pueden interconectar diferentes protocolos como MQTT, MQTT sobre WebSockets, STOMP, HTTP, y más. Además cuenta con un administrador web que lo hace muy conveniente para configurarlo.
+RabbitMQ es un broker que implementa la especificación `AMQP 0-9-1`, y además de soportar el comportamiento estándar, posee extensiones a modo plugins donde se pueden interconectar diferentes protocolos como MQTT, MQTT sobre WebSockets, STOMP, HTTP, y otros. Así mismo, cuenta con plugins que permiten intercomunicar brokers entre sí, pudiendo armar clusters, federaciones y reenvío de entidades particulares. Además cuenta con un administrador web que lo hace muy conveniente para configurarlo.
 
 Este servicio, además de soportar el protocolo `AMQP 0-9-1` hace uso del plugin `MQTT` y `Web MQTT`, que va a correr un broker MQTT asociado al broker RabbitMQ y te va a permitir conectarte mediante clientes MQTT como microcontroladores, asi como también con clientes web, desde el navegador. Realizando esta integración se tiene un puente entre clientes MQTT con un protocolo altamente escalable, donde podrá intercambiar información con otros servicios y dispositivos.
 
-Así mismo, en este servicio se implementa el plugin `rabbitmq_management`. Este servicio es un servidor web que te permite acceder al administrador desde una página para poder administrar todo el broker. También, al ser un servidor web, tiene una interfaz HTTP que te permite acceder al broker de RabbitMQ mediante cualquier cliente HTTP. De esta manera, podés integrar cualquier aplicación HTTP con todo el ecosistema, publicar y consumir mensajes.
+En la configuración por defecto de este servicio se tienen habilitados una serie de plugins que lo hacen muy conveniente para el desarrollo de aplicaciones. Por un lado, con el plugin `rabbitmq_management` se habilita el administrador web del broker y también una interfaz HTTP para realizar las configuraciones mediante su REST API. Con el servicio `rabbitmq_mqtt` y `rabbitmq_web_mqtt` se agrega al broker RabbitMQ un broker MQTT que permite conectar clientes en texto plano, por WebSockets y por SSL. Con los plugin `rabbitmq_federation` y `rabbitmq_federation_management` se habilita dentro del broker la posibilidad de replicar mensajes que se publican en exchanges remotos. Con los plugin `rabbitmq_shovel` y `rabbitmq_shovel_management` es posible tomar datos de un exchange o queue local y replicarlos en un exchange o queue remoto. 
 
-Para que tengas una idea más clara sobre la configuración de este servicio, en esta imagen podés ver cómo está armada la arquitectura, y cómo se integra tanto el broker MQTT - y sus respectivos clientes - como el servidor web del administrador - también con sus clientes HTTP - dentro del ecosistema RabbitMQ.
+Las configuraciones de los plugins y sus funcionamiento están detallados en cada una de las secciones de documentación correspondientes, pero para que tengas una idea, en esta imagen podés ver el diagrama de las funcionalidades habilitadas en el broker.
 
-![rabbitmq_layout](doc/rabbitmq_layout_2.png)
+![rabbitmq_layout](doc/rabbitmq_plugins.png)
 
-> Para que entiendas el alcance de este proyecto, es recomendable que leas la [Introducción a AMQP](https://www.gotoiot.com/pages/articles/amqp_intro/index.html) y la [Introducción a RabbitMQ](https://www.gotoiot.com/pages/articles/rabbitmq_intro/index.html) que se encuentran publicadas en nuestra web.
+> Para que entiendas el alcance de este proyecto, es recomendable que leas los artículos de [Introducción a AMQP](https://www.gotoiot.com/pages/articles/amqp_intro/index.html), [Introducción a RabbitMQ](https://www.gotoiot.com/pages/articles/rabbitmq_intro/index.html) y [RabbitMQ Distribuido](https://www.gotoiot.com/pages/articles/rabbitmq_distribuited/index.html) que se encuentran publicados en nuestra web.
 
 ## Instalar las dependencias 🔩
 
@@ -57,9 +57,19 @@ En esta sección vas a encontrar información que te va a servir para tener un m
 
 <details><summary><b>Accedé a todos los detalles importantes</b></summary>
 
-### Configuración del servicio
+### Índice de la sección
 
-<details><summary><b>Ver detalles de configuración</b></summary>
+* [Configuración del servicio](#configuración-del-servicio)
+* [Definiciones en el broker](#definiciones-en-el-broker)
+* [Producir y consumir mensajes](#producir-y-consumir-mensajes)
+* [Conexión por MQTT plano](#conexión-por-mqtt-plano)
+* [Conexión por MQTT por WebSockets](#conexión-mqtt-por-websockets)
+* [Conexión por HTTP](#conexión-por-http)
+* [Ejecutar comandos dentro del broker](#ejecutar-comandos-dentro-del-broker)
+* [Configuración de federación](#configuración-de-federación)
+* [Configuración de Shovel](#configuración-de-shovel)
+
+### Configuración del servicio
 
 El archivo `docker-compose.yml` administra los parámetros generales de ejecución del broker. Está basado en la imagen oficial de `RabbitMQ` y soporta la conexión con el protocolo AMQP en el binding de puertos 5672:5672, la comunicación por MQTT en 1883:1883, MQTT por WebSockets en 9001:9001 y la comunicación para el administrador del broker por HTTP en el puerto 15672:15672. Así mismo, el broker viene con unos ejemplos para WebSockets configurados en el binding de puertos 9002:9002.
 
@@ -70,25 +80,17 @@ También, dentro del archivo `docker-compose.yml` se definen los bind volumes qu
 * **rabbitmq.conf**: Este es el archivo donde se realiza la configuración específica del broker. Para este proyecto mayormente se realiza la configuración para MQTT y también desde qué path tomar las definiciones. Si querés saber más al respecto podés ingresar a [este link](https://www.rabbitmq.com/configure.html).
 * **definitions.json**: Este archivo permite crear las definiciones de todo el broker antes de comenzar su ejecución y sin tener que hacerlo manualmente. Si querés saber más al respecto podés ingresar a [este link](https://github.com/tyranron/lapin-issue-133-example/blob/master/rabbitmq-definitions.json).
 
-</details>
-
 ### Definiciones en el broker
-
-<details><summary><b>Ver definiciones</b></summary>
 
 Tal como vimos, el archivo `definitions.json` tiene toda la declaración de entidades, usuarios, permisos, exchanges, queues y bindings, que se realizan de manera automática al iniciar el broker. Esta característica resulta realmente útil para compartir la información, por lo que es recomendable que siempre que quieras realizar un proyecto lo tengas en cuenta y trates de realizarla mediante este archivo.
 
 En [este link](https://github.com/tyranron/lapin-issue-133-example/blob/master/rabbitmq-definitions.json) podés ver un ejemplo completo de definiciones que lo podés tomar como punto de partida para realizar tus configuraciones. Este proyecto trae algunas definiciones preestablecidas, y podés modificarla a tus necesidades editando el archivo `definitions.json`.
 
-</details>
-
 ### Producir y consumir mensajes
 
-<details><summary><b>Mira la info sobre los mensajes</b></summary><br>
+Para poder realizar una comunicación entre un productor y un consumidor es necesario que el productor se conecte a un exchange, un consumidor a una queue, y que haya un binding que vincule estas dos entidades.
 
-Para poder realizar una comunicación entre un productor y un consumidor es necesario que el productor se conecte a un exchange, un consumidor a una queue, y que haya un binding (routing_key) que vincule estas dos entidades.
-
-Para este ejemplo vamos a utilizar el exchange que se crea por defecto `amq.topic` (un exchange basado en topic), una queue que se llame `events`, y un binding que vincule el exchange `amq.topic` con la queue `events` utilizando la routing key `event.*` que permitira recibir cualquier tipo de eventos que comiencen con `event.`, como por ejemplo `event.alarm`, `event.user`, pero no algo como `user.logout`.
+Para este ejemplo vamos a utilizar el exchange que se crea por defecto `amq.topic` (un exchange basado en topic), una queue que se llame `events`, y un binding que vincule el exchange `amq.topic` con la queue `events` utilizando la routing key `event.#` que permitira recibir cualquier tipo de eventos que comiencen con `event.`, como por ejemplo `event.alarm`, `event.user`, pero no algo como `user.logout`.
 
 Como primera medida debés logearte en el [admin de RabbitMQ](http://localhost:15672) con el usuario y contraseña que figuran en el archivo `definitions.json` (el usuario por defecto es `gotoiot` y contraseña `gotoiot`). Luego accedé a la pestaña `Queues` en la parte superior.
 
@@ -112,11 +114,7 @@ Luego, anda a la pestaña Queues, y en la sección Get Messages presioná el bot
 
 ![message-show](doc/message-show.png)
 
-</details>
-
 ### Conexión por MQTT plano
-
-<details><summary><b>Mira los detalles sobre MQTT</b></summary><br>
 
 La conexión por MQTT se realiza mediante el `plugin oficial de RabbitMQ`. Es recomendable que leas [la documentación](https://www.rabbitmq.com/mqtt.html) para entender cómo trabaja. 
 
@@ -126,7 +124,7 @@ Para que tengas un poco de contexto respecto al funcionamiento del plugin, podem
 
 Para habilitarlo podés hacerlo de al menos dos maneras. Ingresando en ejecutar comandos dentro del broker (como está mostrado en la sección `Ejecutar comandos`) y corriendo el comando `rabbitmq-plugins enable rabbitmq_mqtt` o bien asegurando que se encuentre dentro del archivo `enable_plugins`.
 
-Para darle una capa de seguridad al broker, será necesario que crees un usuario y una contraseña correspondiente para que puedan conectarse los clientes por MQTT. En la [sección de autenticación](https://www.rabbitmq.com/mqtt.html#authentication) de la documentación, se muestran los comandos para crear un usuario afin.
+Para darle una capa de seguridad al broker, será necesario que crees un usuario y una contraseña correspondiente para que puedan conectarse los clientes por MQTT. En la [sección de autenticación](https://www.rabbitmq.com/mqtt.html#authentication) de la documentación oficial, se muestran los comandos para crear un usuario afin.
 
 El plugin está creado sobre las entidades core (exchanges y queues) de RabbitMQ. Los mensajes publicados usando MQTT son mapeados internamente al exchange `amq.topic` creado por defecto. Los suscriptores - tanto MQTT como otros - consumen de las colas de RabbitMQ vinculadas al exchange `amq.topic`. Esto permite la interoperabilidad con otros protocolos y hace posible usar el panel de administración para inspeccionar las colas correspondientes.
 
@@ -158,13 +156,9 @@ docker run --rm --net host eclipse-mosquitto \
 mosquitto_pub -h localhost -p 1883 -u gotoiot -P gotoiot -t event/failure -m '{"sensor_connected": false}'
 ```
 
-</details>
-
 ### Conexion MQTT por WebSockets
 
-<details><summary><b>Mira los detalles sobre MQTT por WebSockets</b></summary><br>
-
-Otra funcionalidad importante del proyecto, es que está configurado para poder conectarse al broker MQTT mediante WebSockets. Esto es una gran ventaja, ya que habilita a aplicaciones web a tener comunicación con MQTT y con el ecosistema RabbitMQ.
+Otra funcionalidad importante del servicio, es que está configurado para poder conectarse al broker MQTT mediante WebSockets. Esto es una gran ventaja, ya que habilita a aplicaciones web a tener comunicación con MQTT y con el ecosistema RabbitMQ.
 
 Para esta funcionalidad se utiliza el [plugin Web MQTT](https://www.rabbitmq.com/web-mqtt.html) provisto por el core de RabbitMQ. El puerto de conexión MQTT por WebSockets es el 9001, al cual es necesario acceder con el usuario y contraseña. Tanto la configuración del puerto para WebSockets como el usuario y contraseña se encuentran en el archivo `rabbit/rabbitmq.config`. 
 
@@ -172,11 +166,7 @@ Para que puedas realizar una prueba de comunicación MQTT por WebSockets podés 
 
 ![mqtt-websocket-demo](doc/mqtt-websocket-demo.png)
 
-</details>
-
 ### Conexión por HTTP
-
-<details><summary><b>Mira los detalles sobre HTTP</b></summary><br>
 
 En muchos casos puede resultar particularmente útil conectarse al broker RabbitMQ por HTTP. Esto va a permitir conectar clientes que no soporten nativamente las bibliotecas AMQP, o bien establecer una comunicación desde un navegador web, ya que actualmente no se cuenta con soporte web nativo para AMQP.
 
@@ -238,13 +228,9 @@ Con los pasos anteriores se demuestra la comunicación entre un cliente HTTP y l
 
 Si querés ver los detalles completos de la REST API del administrador de RabbitMQ podés ingresar en [este link](https://pulse.mozilla.org/api/).
 
-</details>
-
 ### Ejecutar comandos dentro del broker
 
-<details><summary><b>Ver la ejecución de comandos</b></summary><br>
-
-Si vas a realizar configuraciones en particular dentro del broker, es comun ejecutar comandos dentro del broker, que realizan la misma acción que desde el panel de administración.
+Si vas a realizar configuraciones en particular, es común ejecutar comandos dentro del broker, que realizan la misma acción que desde el panel de administración.
 
 Para correr cualquier comando, primero necesitas saber el nombre del container del servicio, para ello, podes ejecutar el comando `docker ps` y ver su nombre. Luego, una vez que sepas el nombre corre el comando `docker exec -it CONTAINER_NAME /bin/sh` para ingresar dentro del contenedor.
 
@@ -256,7 +242,30 @@ rabbitmqctl set_permissions -p / myuser ".*" ".*" ".*"
 rabbitmqctl set_user_tags myuser management administrator
 ```
 
-</details>
+### Configuración de federación
+
+La federación se encarga de tomar los datos remotos provenientes de queues o exchanges remotos y replicarlos de manera local. 
+
+La federación posibilita la comunicación - llamada upstream - desde broker remotos al local sin necesidad de configuración en el broker remoto. Esto permite que las federaciones sean creadas a demanda, a medida que nuevos dispositivos edge se unen a la red, y permitiendo que las conexiones puedan ser automatizadas.
+
+Para la configuración de la federación es necesario que estén habilitados los plugins `rabbitmq_federation` y `rabbitmq_federation_management` en cada broker local. Esto puede ser realizado desde la línea de comandos del broker, o bien agregando ambos plugins a la lista en el archivo `enable_plugins` del broker. 
+
+Una vez habilitados los plugins, en la sección de `Admin -> Federation Upstream` deberías cargar los datos del broker remoto. Para ello, sólo necesitas cargar la URL del broker remoto y el nombre que le vas a poner a la federación, los demás datos podés dejarlos en blanco.
+
+Luego de crear la federación, es necesario crear una policy dentro del broker para indicar que todos los exchanges/queues que estén declarados remotamente que coincidan con el patron X, sean replicados en cada broker edge. Recordá agregar la definición `federation-upstream-set` igual a `all` en las properties.
+
+Una vez declarada la policy, en la sección `Admin -> Federation Status` deberías ver el estado de la conexión de la federación.
+
+### Configuración de Shovel
+
+La funcionalidad del plugin shovel es recibir mensajes de una fuente y publicarlos a un destino. Esta es una necesidad común a la hora de trabajar con brokers distribuidos, y el plugin de shovel cumple a la perfección con esta tarea, ya que es un cliente realizado por el core de RabbitMQ diseñado para tal fin.
+
+Para la configuración del shovel es necesario que estén habilitados los plugins `rabbitmq_shovel` y `rabbitmq_shovel_management`. Esto puede ser realizado desde la línea de comandos del broker, o bien agregando ambos plugins a la lista en el archivo `enable_plugins` del broker. 
+
+Una vez habilitados los plugins, en la sección de `Admin -> Shovel Management` deberías cargar los datos del source y destination. En el source deberías poner la URI del broker local y el exchange o queue correspondientes. Para la parte de destino deberías cargar la URI del broker remoto y el exchange o queue correspondientes.
+
+Una vez declarados, en la sección `Admin -> Shovel Status` deberías ver el estado de la conexión del plugin.
+
 
 </details>
 
